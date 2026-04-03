@@ -1,17 +1,9 @@
-numpy>=2.0.0
-pandas>=2.2.0
-pymatgen==2026.3.23
-pymatgen-core==2026.3.9
-pymatgen-io-validation==0.1.2
-pyzmq==27.1.0
-streamlit==1.55.0
-torch==2.10.0
-py3Dmol
-ase
-chgnet
-chgnet>=0.3.0
-pymatgen>=2024.1.1
-torch>=2.0.1
-# Added for the visualizer you requested
-stmol==0.0.9
-py3Dmol==2.4.2
+ase>=3.23.0
+chgnet==0.4.2
+pymatgen>=2024.9.10
+numpy>=1.24.0,<2.0.0
+pandas>=2.0.0
+torch>=2.2.0
+streamlit>=1.30.0
+py3dmol>=2.4.0
+pyzmq>=25.0.0
