@@ -99,7 +99,13 @@ def bond_length_reasonableness_score(cif_str, tolerance=0.32, h_factor=2.5):
 
             bond_count += 1
 
-    normalized_score = score / bond_count
+    # Safe division check
+    if bond_count > 0:
+        normalized_score = score / bond_count
+    else:
+        # If there's only 1 atom, there are 0 bonds. 
+        # We give it a perfect score (1.0) because it's valid.
+        normalized_score = 1.0
 
     return normalized_score
 

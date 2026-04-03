@@ -2,7 +2,35 @@ import random
 import zmq
 import numpy as np
 from pymatgen.core import Structure
+from chgnet.model import CHGNet
+from pymatgen.core import Structure
+import numpy as np
 
+class CHGNetScorer:
+    def __init__(self):
+        # Load the pre-trained 'universal' model
+        self.model = CHGNet.load()
+        st.info("CHGNet v0.3.0 Loaded: Ready for Stability Prediction")
+
+    def score(self, cif_string: str) -> float:
+        try:
+            # 1. Convert CIF to Pymatgen Structure
+            struct = Structure.from_str(cif_string, fmt="cif")
+            
+            # 2. Predict energy, forces, and stress
+            prediction = self.model.predict_structure(struct)
+            
+            # 3. Extract Energy per atom (this is our 'Stability' metric)
+            energy_per_atom = prediction['energy'] 
+            
+            # 4. Convert to a reward (MCTS maximizes, so we negate energy)
+            # We want the most negative energy (most stable)
+            reward = -energy_per_atom 
+            
+            return float(reward)
+            
+        except Exception as e:
+            return -10.0 # Penalty for invalid/exploding structures
 class CIFScorer:
     """
     An abstract CIF scorer. A scorer provides a heuristic score for a completed CIF.
