@@ -5,32 +5,36 @@ from pymatgen.core import Structure
 from chgnet.model import CHGNet
 from pymatgen.core import Structure
 import streamlit as st
+from chgnet.model import CHGNet
+from chgnet.model.dynamics import CHGNetCalculator
 
 class CHGNetScorer:
     def __init__(self):
-        # Load the pre-trained 'universal' model
+        # Load the pretrained CHGNet model for predictions
         self.model = CHGNet.load()
-        st.info("CHGNet v0.3.0 Loaded: Ready for Stability Prediction")
+        print("CHGNet Loaded: Ready for Stability Prediction")
+        # Don't use Streamlit in a scorer class
 
     def score(self, cif_string: str) -> float:
         try:
-            # 1. Convert CIF to Pymatgen Structure
             struct = Structure.from_str(cif_string, fmt="cif")
             
-            # 2. Predict energy, forces, and stress
-            prediction = self.model.predict_structure(struct)
+            # Method 1: Direct prediction (no relaxation)
+            results = self.model.predict_structure(struct)
+            # results is a dict with keys: 'e' (energy), 'f' (forces), 's' (stress)
+            energy = results['e']  # Total energy (not energy_per_atom)
             
-            # 3. Extract Energy per atom (this is our 'Stability' metric)
-            energy_per_atom = prediction['energy'] 
+            # Method 2: Alternative with calculator for full relaxation
+            # calc = CHGNetCalculator()
+            # relaxed_struct = calc.predict_structure(struct)
+            # energy = relaxed_struct.energy  # if available
             
-            # 4. Convert to a reward (MCTS maximizes, so we negate energy)
-            # We want the most negative energy (most stable)
-            reward = -energy_per_atom 
-            
-            return float(reward)
+            # Return negative energy (more negative = more stable = higher score)
+            return -energy
             
         except Exception as e:
-            return -10.0 # Penalty for invalid/exploding structures
+            print(f"CHGNet scoring failed: {e}")
+            return -100.0
 class CIFScorer:
     """
     An abstract CIF scorer. A scorer provides a heuristic score for a completed CIF.
