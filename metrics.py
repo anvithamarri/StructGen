@@ -1,5 +1,3 @@
-import re
-
 from pymatgen.analysis.local_env import CrystalNN
 from pymatgen.core import Composition, Structure
 from pymatgen.io.cif import CifParser
