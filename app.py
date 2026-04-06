@@ -92,7 +92,7 @@ c_puct = st.sidebar.number_input("Exploration Weight", value=1.4)
 formula = st.text_input("Chemical Formula", value="C 2")
 
 if st.button("Run Optimization", type="primary"):
-    from scorer import HeuristicPhysicalScorer
+    from scorer import CHGNetScorer
     from model_utils import GPTConfig
     from mcts import MCTSSampler, MCTSEvaluator, PUCTSelector, ContextSensitiveTreeBuilder
 
@@ -100,7 +100,7 @@ if st.button("Run Optimization", type="primary"):
     start_prompt = f"data_{clean_formula}\n"
     
     try:
-        external_scorer = HeuristicPhysicalScorer(target_density=target_rho)
+        external_scorer = CHGNetScorer()
         evaluator = MCTSEvaluator(scorer=external_scorer, tokenizer=tokenizer)
         selector = PUCTSelector(cpuct=c_puct)
         tree_builder = ContextSensitiveTreeBuilder(tokenizer=tokenizer)
@@ -131,8 +131,8 @@ if st.button("Run Optimization", type="primary"):
             st.divider()
             
             # --- OFFICIAL CHGNet STEP ---
-            with st.expander("Structural Relaxation (Ceder Group AI)", expanded=True):
-                do_relax = st.checkbox("Enable CHGNet Post-Optimization", value=True)
+            with st.expander("Structural Relaxation (Ceder Group AI)", expanded=False):
+                do_relax = st.checkbox("Enable CHGNet Post-Optimization", value=False)
             
             if do_relax:
                 with st.spinner("CHGNet is pulling atoms into stable positions..."):
