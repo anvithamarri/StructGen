@@ -5,8 +5,6 @@ from pymatgen.symmetry.analyzer import SpacegroupAnalyzer
 import math
 import re
 import pandas as pd
-
-from pymatgen.core import Composition
 from pymatgen.io.cif import CifBlock
 from pymatgen.symmetry.groups import SpaceGroup
 from pymatgen.core.operations import SymmOp
