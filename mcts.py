@@ -158,7 +158,7 @@ class MCTSEvaluator:
 
     self._num_valid += 1
 
-    try:
+      try:
         print("invoking external scorer...")
         score = self._scorer.score(cif)
         
