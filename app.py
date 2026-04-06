@@ -67,8 +67,37 @@ def load_backend():
         return None, None, device, str(e)
 
 # --- UI Setup ---
-st.set_page_config(page_title="Crystal-Gen", layout="wide")
-st.markdown("<h1 style='text-align: center; color: #00d4ff;'>Crystal-Gen</h1>", unsafe_allow_html=True)
+st.set_page_config(page_title="StructGen",layout="wide",initial_sidebar_state="expanded")
+# --- UI Configuration & Styling ---
+# Custom CSS for better organization
+st.markdown("""
+    <style>
+        .header-title {
+            text-align: center;
+            color: #00d4ff;
+            font-size: 3em;
+            font-weight: bold;
+            margin-bottom: 0.5em;
+            letter-spacing: 2px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 1.1em;
+            margin-bottom: 2em;
+        }
+        .section-header {
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+            padding-bottom: 0.5em;
+            margin-top: 1.5em;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- Main Header ---
+st.markdown("<div class='header-title'>StructGen</div>", unsafe_allow_html=True)
+st.markdown("<div class='subtitle'>AI-Powered Crystal Structure Generation & Optimization</div>", unsafe_allow_html=True)
 
 # Initialize
 with st.spinner("Initializing AI & CHGNet..."):
