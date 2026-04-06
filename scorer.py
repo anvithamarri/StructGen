@@ -5,6 +5,7 @@ from pymatgen.core import Structure
 from chgnet.model import CHGNet
 from pymatgen.core import Structure
 import numpy as np
+import streamlit as st
 
 class CHGNetScorer:
     def __init__(self):
