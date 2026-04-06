@@ -9,7 +9,6 @@ import numpy as np
 import torch
 from torch.nn import functional as F
 
-
 from model_utils import (
     GPT,
     GPTConfig,
@@ -28,6 +27,7 @@ from metrics import (
 )
 from scorer import CIFScorer
 
+
 class MCTSEvaluator:
     def __init__(self, scorer: CIFScorer, tokenizer: CIFTokenizer,
                  bond_length_acceptability_cutoff=1.0, reward_k=2.0, out_dir=None):
@@ -39,11 +39,10 @@ class MCTSEvaluator:
         self._num_valid = 0
         self._all_scores = []
         self._all_cifs = []
-        self._relaxed_structures = []  # ← ADD: Store relaxed structures
+        self._relaxed_structures = []
 
     def _postprocess(self, cif_str):
-        # try to calculate the implied volume, to weed out very bad generations;
-        #  an exception will be thrown if a value is missing, or the volume is nonsensical
+        """Postprocess CIF string by calculating volume, replacing symmetry operators, and removing atom properties."""
         a = extract_numeric_property(cif_str, "_cell_length_a")
         b = extract_numeric_property(cif_str, "_cell_length_b")
         c = extract_numeric_property(cif_str, "_cell_length_c")
@@ -63,6 +62,7 @@ class MCTSEvaluator:
         return cif_str
 
     def _is_valid(self, generated_cif):
+        """Validate the generated CIF structure."""
         if not is_formula_consistent(generated_cif):
             msg = "the generated CIF is inconsistent in terms of composition"
             return False, msg, None
@@ -103,82 +103,85 @@ class MCTSEvaluator:
         return 1 / (1 + math.e**(self._k*((score - mu)/sigma)))
 
     def _write_cif_to_file(self, cif, score, reward, id, iter_num, relaxed_struct=None):
-      if self._out_dir is not None:
+        """Write CIF file and results to disk."""
+        if self._out_dir is not None:
+            if not os.path.exists(self._out_dir):
+                os.makedirs(self._out_dir)
 
-        if not os.path.exists(self._out_dir):
-            os.makedirs(self._out_dir)
+            # Save original generated structure
+            cif_file = f"generated_{id}.cif"
+            cif_fname = os.path.join(self._out_dir, cif_file)
+            if not os.path.exists(cif_fname):
+                print(f"writing CIF to: {cif_fname}")
+                with open(cif_fname, "wt") as f:
+                    f.write(cif)
 
-        # Save original generated structure
-        cif_file = f"generated_{id}.cif"
-        cif_fname = os.path.join(self._out_dir, cif_file)
-        if not os.path.exists(cif_fname):
-            print(f"writing CIF to: {cif_fname}")
-            with open(cif_fname, "wt") as f:
-                f.write(cif)
+                # Save relaxed structure if available
+                if relaxed_struct is not None:
+                    relaxed_file = f"relaxed_{id}.cif"
+                    relaxed_fname = os.path.join(self._out_dir, relaxed_file)
+                    relaxed_struct.to(fmt="cif", filename=relaxed_fname)
+                    print(f"writing relaxed CIF to: {relaxed_fname}")
 
-        # ← ADD: Save relaxed structure if available
-        if relaxed_struct is not None:
-            relaxed_file = f"relaxed_{id}.cif"
-            relaxed_fname = os.path.join(self._out_dir, relaxed_file)
-            relaxed_struct.to(fmt="cif", filename=relaxed_fname)
-            print(f"writing relaxed CIF to: {relaxed_fname}")
+                # create .csv to keep track of results
+                csv_file = "results.csv"
+                csv_fname = os.path.join(self._out_dir, csv_file)
+                if not os.path.exists(csv_fname):
+                    print(f"creating {csv_fname} as it does not exist...")
+                    with open(csv_fname, "wt") as f:
+                        f.write("file,iteration,score,reward\n")
 
-        # create .csv to keep track of results
-        csv_file = "results.csv"
-        csv_fname = os.path.join(self._out_dir, csv_file)
-        if not os.path.exists(csv_fname):
-            print(f"creating {csv_fname} as it does not exist...")
-            with open(csv_fname, "wt") as f:
-                f.write("file,iteration,score,reward\n")
-
-        # update .csv
-        with open(csv_fname, "a") as f:
-            f.write(f"{cif_file},{iter_num},{score},{reward}\n")
-
-        else:
-            print(f"CIF not written to file as it already exists: {cif_fname}")
+                # update .csv
+                with open(csv_fname, "a") as f:
+                    f.write(f"{cif_file},{iter_num},{score},{reward}\n")
+            else:
+                print(f"CIF not written to file as it already exists: {cif_fname}")
 
     def __call__(self, token_sequence, iter_num):
-      cif = self._tokenizer.decode(token_sequence)
-      relaxed_struct = None  # ← ADD: Initialize
+        """Evaluate a token sequence and return the reward."""
+        cif = self._tokenizer.decode(token_sequence)
+        relaxed_struct = None
 
-      try:
-        cif = self._postprocess(cif)
-        valid, msg, bond_length_score = self._is_valid(cif)
-        if not valid:
-            print(f"CIF invalid: {msg}")
-            if bond_length_score is not None:
-                return -(1 - bond_length_score)
-            else:
-                return -1.0
-    except Exception as e:
-        print(f"exception while post-processing and validating: {e}")
-        print(traceback.format_exc())
-        return -1.0
+        # Postprocess and validate the CIF
+        try:
+            cif = self._postprocess(cif)
+            valid, msg, bond_length_score = self._is_valid(cif)
+            if not valid:
+                print(f"CIF invalid: {msg}")
+                if bond_length_score is not None:
+                    return -(1 - bond_length_score)
+                else:
+                    return -1.0
+        except Exception as e:
+            print(f"exception while post-processing and validating: {e}")
+            print(traceback.format_exc())
+            return -1.0
 
-    self._num_valid += 1
+        self._num_valid += 1
 
-      try:
-        print("invoking external scorer...")
-        score = self._scorer.score(cif)
-        
-        # ← ADD: If using CHGNetScorer, also get relaxed structure
-        # This is optional - only if your scorer returns relaxed structures
-        
-    except Exception as e:
-        print(f"exception while scoring: {e}")
-        print(traceback.format_exc())
-        return -1.0
+        # Score the CIF
+        try:
+            print("invoking external scorer...")
+            score = self._scorer.score(cif)
 
-    if math.isnan(score):
-        print(f"reward cannot be computed as score is nan")
-        return -1.0
+            # Optional: If using CHGNetScorer, you can extract relaxed structure
+            # This would require CHGNetScorer to return both score and relaxed structure
+            # For now, we just use the score
 
-    reward = self._get_reward(score)
+        except Exception as e:
+            print(f"exception while scoring: {e}")
+            print(traceback.format_exc())
+            return -1.0
 
-    self._write_cif_to_file(cif, score, reward, self._num_valid, iter_num, relaxed_struct)
+        if math.isnan(score):
+            print(f"reward cannot be computed as score is nan")
+            return -1.0
 
-    return reward
+        reward = self._get_reward(score)
+
+        self._write_cif_to_file(cif, score, reward, self._num_valid, iter_num, relaxed_struct)
+
+        return reward
 
 
 class MCTSLanguageModel:
@@ -191,6 +194,7 @@ class MCTSLanguageModel:
         self._temperature = temperature
 
     def rollout(self, rollout_state: List[int], width: int, max_depth: int, newline_id: int) -> List[int]:
+        """Perform rollout from a given state."""
         idx = (torch.tensor(rollout_state, dtype=torch.long, device=self._device)[None, ...])
         prev_id = None
         for _ in range(max_depth):
@@ -217,6 +221,7 @@ class MCTSLanguageModel:
         return idx[0].tolist()
 
     def top_n_vocab_with_weights(self, n: int, token_sequence: List[int]) -> Tuple[List[int], List[float]]:
+        """Get top-n vocabulary tokens with their weights."""
         idx = (torch.tensor(token_sequence, dtype=torch.long, device=self._device)[None, ...])
 
         # if the sequence context is growing too long we must crop it at block_size
@@ -244,6 +249,7 @@ class MCTSLanguageModel:
 
     @staticmethod
     def _normalize(log_probs: List[float]) -> List[float]:
+        """Normalize log probabilities to weights."""
         probs = [math.exp(lp) for lp in log_probs]
         prob_factor = 1 / sum(probs)
         return [prob_factor * p for p in probs]
@@ -271,6 +277,7 @@ class ContextSensitiveTreeBuilder:
         width: int,
         newline_id: int,
     ) -> Tuple[Union[List[int], List[List[int]]], List[float]]:
+        """Get child IDs and weights based on context sensitivity."""
 
         if len(state) > 1 and state[-2:] == [self._tok.token_to_id["_symmetry_space_group_name_H-M"], self._tok.token_to_id[" "]] and self._n_space_groups > 0:
             return lm.top_n_vocab_with_weights(self._n_space_groups, state)
@@ -324,9 +331,11 @@ class MCTSNode:
 
     @staticmethod
     def is_complete(state: List[int], newline_id: int):
+        """Check if a state is complete (ends with two newlines)."""
         return len(state) > 1 and state[-2:] == [newline_id, newline_id]
 
     def _get_child_states(self):
+        """Get possible child states and their weights."""
         child_states = []
         child_state_weight_map = {}
         if len(self.state) < self._max_depth and not self.is_complete(self.state, self._newline_id):
@@ -344,12 +353,15 @@ class MCTSNode:
         return child_states, child_state_weight_map
 
     def has_untried_moves(self):
+        """Check if there are untried moves."""
         return self.untried_moves != []
 
     def select_untried_move(self):
+        """Select a random untried move."""
         return random.choice(self.untried_moves)
 
     def add_child(self, child_state, language_model, width, max_depth, newline_id):
+        """Add a child node."""
         child = MCTSNode(child_state, language_model, width, max_depth, newline_id,
                          parent=self, tree_builder=self.tree_builder)
         child.prob = self.child_weight_map[tuple(child_state)]
@@ -358,20 +370,24 @@ class MCTSNode:
         return child
 
     def has_children(self):
+        """Check if node has children."""
         return self.children != []
 
 
 class MCTSNodeSelector:
     def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        """Abstract method to select a node."""
         pass
 
 
 class PUCTSelector(MCTSNodeSelector):
+    """PUCT (Polynomial Upper Confidence Bound applied to Trees) selector."""
 
     def __init__(self, cpuct: float):
         self._cpuct = cpuct
 
     def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        """Select node with highest PUCT value."""
         highest_puct = None
         selected_node = None
         for node in nodes:
@@ -382,6 +398,7 @@ class PUCTSelector(MCTSNodeSelector):
         return selected_node
 
     def _puct(self, node: MCTSNode) -> float:
+        """Calculate PUCT value for a node."""
         if node.visits == 0:
             return math.inf
         if node.prob is None:
@@ -390,11 +407,13 @@ class PUCTSelector(MCTSNodeSelector):
 
 
 class GreedySelector(MCTSNodeSelector):
+    """Greedy selector with epsilon-exploration."""
 
     def __init__(self, epsilon: float):
         self._epsilon = epsilon
 
     def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        """Select node greedily or randomly based on epsilon."""
         if random.random() < self._epsilon:
             return random.choice(nodes)
         # return node with the highest value
@@ -408,14 +427,18 @@ class GreedySelector(MCTSNodeSelector):
         return selected_node
 
     def _value(self, node: MCTSNode) -> float:
+        """Calculate value for a node."""
         return node.wins / node.visits
 
 
 class UCTSelector(MCTSNodeSelector):
+    """UCT (Upper Confidence bounds applied to Trees) selector."""
+
     def __init__(self, c: float):
         self._c = c
 
     def select_node(self, nodes: List[MCTSNode]) -> MCTSNode:
+        """Select node with highest UCT value."""
         highest_uct = None
         selected_node = None
         for node in nodes:
@@ -426,6 +449,7 @@ class UCTSelector(MCTSNodeSelector):
         return selected_node
 
     def _uct(self, node: MCTSNode) -> float:
+        """Calculate UCT value for a node."""
         if node.visits == 0:
             return math.inf
         if node.prob is None:
@@ -434,6 +458,7 @@ class UCTSelector(MCTSNodeSelector):
 
 
 class MCTSSampler:
+    """Monte Carlo Tree Search sampler for crystal structure generation."""
 
     def __init__(
         self,
@@ -460,6 +485,7 @@ class MCTSSampler:
         self._tree_builder = tree_builder
 
     def search(self, start: str, num_simulations: int, stepwise: bool = False, n_rollouts: int = 1):
+        """Perform MCTS search."""
         state = self._tokenizer.encode(self._tokenizer.tokenize_cif(start))
         root_node = MCTSNode(state, self._lm, self._width, self._max_depth, self._newline_id,
                              tree_builder=self._tree_builder)
@@ -505,9 +531,11 @@ class MCTSSampler:
         return most_visited_node.state
 
     def _store_best(self, rollout_state: List[int], score: float):
+        """Store the best sequence found so far."""
         current_best = self._best_sequence
         if current_best is None or score > current_best[1]:
             self._best_sequence = (rollout_state, score)
 
     def get_best_sequence(self) -> Tuple[List[int], float]:
+        """Get the best sequence found."""
         return self._best_sequence
