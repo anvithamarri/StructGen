@@ -206,7 +206,7 @@ with st.sidebar:
     st.divider()
     
     # --- Search Settings (Collapsible) ---
-    with st.expander("🔍 Search Settings", expanded=True):
+    with st.expander("Search Settings", expanded=True):
         num_sims = st.slider("Number of Simulations", 5, 500, 150)
         width = st.slider("Tree Width (Top-K)", 2, 50, 20) 
         temp = st.slider("Temperature", 0.1, 1.5, 0.1)
@@ -214,8 +214,8 @@ with st.sidebar:
     st.divider()
     
     # --- Physical Constraints (Collapsible) ---
-    with st.expander("⚛️ Physical Constraints", expanded=True):
-        target_rho = st.slider("Target Density (g/cm��)", 1.0, 15.0, 3.51)
+    with st.expander("Physical Constraints", expanded=True):
+        target_rho = st.slider("Target Density (g/cm)", 1.0, 15.0, 3.51)
         c_puct = st.number_input("Exploration Weight (PUCT)", value=1.4, step=0.1)
 
 # --- Main Content Area ---
@@ -229,7 +229,7 @@ with col1:
         placeholder="e.g., C 2, NaCl, Fe3O4"
     )
 with col2:
-    run_button = st.button("▶️ Run Optimization", type="primary", use_container_width=True)
+    run_button = st.button("Run Optimization", type="primary", use_container_width=True)
 
 # --- Main Optimization Process ---
 if run_button:
@@ -272,21 +272,21 @@ if run_button:
             st.divider()
             
             # --- Post-Processing Options ---
-            st.markdown(f"<div class='section-header'>📋 Post-Processing Options</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='section-header'>Post-Processing Options</div>", unsafe_allow_html=True)
             
             with st.expander("🔧 Structural Relaxation (CHGNet - Ceder Group AI)", expanded=False):
                 st.write("Apply CHGNet to refine atomic positions using machine learning force field")
                 do_relax = st.checkbox("Enable CHGNet Post-Optimization", value=False)
                 
                 if do_relax:
-                    with st.spinner("⚙️ CHGNet is pulling atoms into stable positions..."):
+                    with st.spinner("CHGNet is pulling atoms into stable positions..."):
                         cif_output = relax_structure(cif_output, device)
-                        st.success("✅ Structure successfully relaxed by CHGNet!")
+                        st.success("Structure successfully relaxed by CHGNet!")
             
             # --- Results Display ---
-            st.markdown(f"<div class='section-header'>📊 Optimization Results</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='section-header'>Optimization Results</div>", unsafe_allow_html=True)
             
-            st.info(f"✨ Generation Successful! | Physical Score: **{best_score:.4f}**")
+            st.info(f"Generation Successful! | Physical Score: **{best_score:.4f}**")
             
             col1, col2 = st.columns([1.5, 1])
             
@@ -303,14 +303,14 @@ if run_button:
                     view.zoomTo()
                     st.components.v1.html(view._make_html(), height=500)
                 except Exception as ve:
-                    st.error("❌ 3D Viewer Error - Unable to display structure")
+                    st.error("3D Viewer Error - Unable to display structure")
 
             with col2:
                 st.markdown("####  Structure Data")
                 
                 # Download button
                 st.download_button(
-                    label="📥 Download CIF File",
+                    label="Download CIF File",
                     data=cif_output,
                     file_name=f"{clean_formula}_opt.cif",
                     mime="text/plain",
@@ -318,7 +318,7 @@ if run_button:
                 )
                 
                 # Raw CIF Display
-                with st.expander("📄 Show Raw CIF Text", expanded=False):
+                with st.expander("Show Raw CIF Text", expanded=False):
                     st.code(cif_output, language="text")
                 
                 # Summary Stats
