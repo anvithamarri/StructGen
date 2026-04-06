@@ -3,9 +3,7 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from dataclasses import dataclass
-
-# Ensure your CIFTokenizer class is available
-from CIFTokensier import CIFTokenizer 
+from CIFTokensier import CIFTokenizer  # ← Note the typo: "CIFTokensier"
 
 @dataclass
 class GPTConfig:
