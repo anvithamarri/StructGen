@@ -81,7 +81,7 @@ class CIFTokenizer:
         # map the id of 'Pm_sg' back to 'Pm', or 'P1_sg' to 'P1',
         #  for decoding convenience
         for sg in space_groups_sg:
-            self._token_to_id[self.token_to_id[sg]] = sg.replace("_sg", "")
+            self._id_to_token[self.token_to_id[sg]] = sg.replace("_sg", "")
 
     @staticmethod
     def atoms():
